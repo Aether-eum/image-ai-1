@@ -4,6 +4,7 @@ import csv
 import numpy as np
 import torch
 import torchvision
+from PIL import Image
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, Dataset
 from torch.optim import Adam
@@ -69,7 +70,12 @@ class ImageDataset(Dataset):
     def load_image(self, image_index):
         # load image using skimage
         path = os.path.join(self.root_dir, "images",  self.images[image_index])
-        img = io.imread(path)
+        # img = io.imread(path)
+        # read image with PIL
+        img = Image.open(path)
+        # convert to numpy array
+        img = np.array(img)
+        # print(img.shape)
 
         # remove alpha channel
         if img.shape[2] == 4:
@@ -85,7 +91,23 @@ def train_model():
 
 
     # create a dataset object
-    transform = transforms.ToTensor()
+    transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize(224),
+            transforms.ToTensor(),
+            ])
+
+    # transform = transforms.Resize(224)
+
+    # transform = transforms.ToTensor()
+
+    # define the transform
+    # transform = transforms.Compose([
+    #     transforms.Resize(224),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    #                             std=[0.229, 0.224, 0.225])
+    # ])
 
     dataset = ImageDataset(root_dir="/home/aether/pycharm/ai1", transform=transform)
     # split the dataset into train and validation
@@ -95,11 +117,29 @@ def train_model():
     # create train and validation dataloaders
     train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=4)
-    # create pytorch model
-    model = torchvision.models.resnet18(weights='ResNet18_Weights.DEFAULT')
-    # Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
+
+    # # create pytorch model
+    # model = torchvision.models.resnet18(weights='ResNet18_Weights.DEFAULT')
+    # # Define the loss function with Classification Cross-Entropy loss and an optimizer with Adam optimizer
+    # loss_fn = nn.CrossEntropyLoss()
+    # optimizer = Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
+
+    # second version
+    model = torchvision.models.resnet50(pretrained=True)
+    # freeze
+    for param in model.parameters():
+        param.requires_grad = False
+
+    for param in model.parameters():
+        param.requires_grad = False
+
+    model.fc = nn.Sequential(nn.Linear(2048, 512),
+                             nn.ReLU(),
+                             nn.Dropout(0.2),
+                             nn.Linear(512, 10),
+                             nn.LogSoftmax(dim=1))
+    loss_fn = nn.NLLLoss()
+    optimizer = Adam(model.fc.parameters(), lr=0.003)
 
     # Define your execution device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
