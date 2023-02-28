@@ -1,14 +1,23 @@
 import os
 import csv
+
+import numpy as np
 import torch
 import torchvision
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, Dataset
 from torch.optim import Adam
 import torch.nn as nn
+import skimage.io as io
+import skimage.transform
+import skimage.color
+import skimage
+from torchvision import transforms, utils
 
 
 class ImageDataset(Dataset):
     def __init__(self, root_dir, transform=None):
+        thisdict = {}
         self.root_dir = root_dir
         self.transform = transform
         self.images = []
@@ -22,43 +31,63 @@ class ImageDataset(Dataset):
         print(your_list[0][3])
         print(your_list[0][6])
 
-
         # iterate through your_list
         for i in range(len(your_list)):
             # get the image file name
             img_file = your_list[i][3]
-            # get the label value
-            label_value = your_list[i][6]
+            # get the label value converted to int
+            label_value = int(your_list[i][6])
+            # check if the image file name is already in the dictionary
+            if img_file in thisdict:
+                thisdict[img_file].append(label_value)
+            else:
+                thisdict[img_file] = [label_value]
+
+        # iterate through the dictionary
+        for key, value in thisdict.items():
+            # print(key, value)
             # append the image file name to self.images if image was not already added
-            img_name = os.path.join(root_dir, "{}.png".format(img_file))
+            img_name = "{}.png".format(key)
             self.images.append(img_name)
-            # append the label value to self.labels
-            self.labels.append(label_value)
+            # append the int average label value to self.labels
+            self.labels.append(int(np.mean(value)))
 
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
-        img = self.images[idx]
-        label = self.labels[idx]
 
-        print(img)
-        print(label)
+        img = self.load_image(idx)
+        label = self.labels[idx]
 
         if self.transform:
             img = self.transform(img)
 
         return img, label
 
+    def load_image(self, image_index):
+        # load image using skimage
+        path = os.path.join(self.root_dir, "images",  self.images[image_index])
+        img = io.imread(path)
 
+        # remove alpha channel
+        if img.shape[2] == 4:
+            img = img[:, :, :3]
+
+        if len(img.shape) == 2:
+            img = skimage.color.gray2rgb(img)
+
+        return img
 
 
 def train_model():
 
 
     # create a dataset object
-    dataset = ImageDataset(root_dir="./images")
+    transform = transforms.ToTensor()
+
+    dataset = ImageDataset(root_dir="/home/aether/pycharm/ai1", transform=transform)
     # split the dataset into train and validation
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
@@ -82,12 +111,16 @@ def train_model():
     for epoch in range(10):
         print("Epoch: ", epoch)
         model.train()
-        for i, (images, labels) in enumerate(train_dataloader):
-            images = images.to(device)
-            labels = labels.to(device)
+        for i, (image, label) in enumerate(train_dataloader):
+            # print(images)
+            # print(labels)
+            print(i, image.size(), label.size())
+
+            image = image.to(device)
+            label = label.to(device)
             optimizer.zero_grad()
-            outputs = model(images)
-            loss = loss_fn(outputs, labels)
+            outputs = model(image)
+            loss = loss_fn(outputs, label)
             loss.backward()
             optimizer.step()
             if i % 10 == 0:
