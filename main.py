@@ -88,12 +88,12 @@ class ImageDataset(Dataset):
 
 
 def train_model():
-
+    # torch.backends.cudnn.enabled = False
 
     # create a dataset object
     transform = transforms.Compose([
             transforms.ToPILImage(),
-            transforms.Resize(224),
+            transforms.Resize(448),
             transforms.ToTensor(),
             ])
 
@@ -138,6 +138,13 @@ def train_model():
                              nn.Dropout(0.2),
                              nn.Linear(512, 10),
                              nn.LogSoftmax(dim=1))
+
+    # currently causing errors
+    # model.fc = nn.Sequential(nn.Linear(2048, 5),
+    #                             nn.LogSoftmax(dim=1))
+
+
+
     loss_fn = nn.NLLLoss()
     optimizer = Adam(model.fc.parameters(), lr=0.003)
 
@@ -152,14 +159,13 @@ def train_model():
         print("Epoch: ", epoch)
         model.train()
         for i, (image, label) in enumerate(train_dataloader):
-            # print(images)
-            # print(labels)
-            print(i, image.size(), label.size())
-
+            # print(i, image.size(), label.size())
+            print(i, image.shape, label.shape)
             image = image.to(device)
             label = label.to(device)
             optimizer.zero_grad()
             outputs = model(image)
+            print(outputs, label)
             loss = loss_fn(outputs, label)
             loss.backward()
             optimizer.step()
