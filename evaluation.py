@@ -84,7 +84,78 @@ def main():
     model_eb7.load_state_dict(torch.load(os.path.join(root_dir, "efficientnetb7_epoch_9.pth")))
     model_eb7.eval()
 
-    model_yolo = YOLO("runs/classify/yolov8m_v8_20e/weights/best.pt")
+    transform_eb7 = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(896),
+        transforms.ToTensor(),
+    ])
+
+    model_yolon =  YOLO("runs/classify/yolov8n_v8_10e/weights/best.pt")  # load a custom model
+
+    model_yolom =  YOLO("runs/classify/yolov8m_v8_20e/weights/best.pt")  # load a custom model
+
+    model_yolol =  YOLO("runs/classify/yolov8l_v8_50e/weights/best.pt")  # load a custom model
+
+    path = os.path.join(root_dir, "images", "642.png")
+    img = Image.open(path)
+    # convert to numpy array
+    img = np.array(img)
+    if img.shape[2] == 4:
+        img = img[:, :, :3]
+    if len(img.shape) == 2:
+        img = skimage.color.gray2rgb(img)
+
+    # transform the image
+    img_50 = transform_model_r50(img)
+    img_101 = transform_r101(img)
+    # img_eb7 = transform_eb7(img)
+
+    # add batch dimension
+    img_50 = img_50.unsqueeze(0)
+    img_101 = img_101.unsqueeze(0)
+    # img_eb7 = img_eb7.unsqueeze(0)
+
+    # pass the image through the models
+    output_50 = model_r50(img_50)
+    output_101 = model_r101(img_101)
+    # output_eb7 = model_eb7(img_eb7)
+
+    # get the predicted class
+    _, pred_50 = torch.max(output_50, 1)
+    _, pred_101 = torch.max(output_101, 1)
+    # _, pred_eb7 = torch.max(output_eb7, 1)
+
+    # # get the predicted class
+    pred_yolon = model_yolon(path)
+    # print(pred_yolon)
+    # _, pred_yolon = torch.max(pred_yolon., 1)
+    # print(pred_yolon)
+    pred_yolom = model_yolom(path)
+    pred_yolol = model_yolol(path)
+
+    # # get the predicted class
+    # _, pred_yolon = torch.max(pred_yolon, 1)
+    # _, pred_yolom = torch.max(pred_yolom, 1)
+    # _, pred_yolol = torch.max(pred_yolol, 1)
+    #
+    # # get the predicted class
+    # pred_yolon = pred_yolon.item()
+    # pred_yolom = pred_yolom.item()
+    # pred_yolol = pred_yolol.item()
+
+    # print all
+    print("Resnet50: ", pred_50.item())
+    print("Resnet101: ", pred_101.item())
+    # print("Efficientnetb7: ", pred_eb7.item())
+    # print("YOLOn: ", pred_yolon)
+    # print("YOLOm: ", pred_yolom)
+    # print("YOLOl: ", pred_yolol)
+
+
+
+
+
+
 
 
 

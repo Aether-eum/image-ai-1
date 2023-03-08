@@ -92,4 +92,4 @@ copy_paste: 0.0
 cfg: null
 v5loader: false
 tracker: botsort.yaml
-save_dir: runs/classify/yolov8n_v8_10e2
+save_dir: runs/classify/yolov8n_v8_10e3
