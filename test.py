@@ -43,7 +43,7 @@ def main():
                              nn.Dropout(0.2),
                              nn.Linear(512, 10),
                              nn.LogSoftmax(dim=1))
-    model.load_state_dict(torch.load(os.path.join(root_dir,"model_epoch_9.pth")))
+    model.load_state_dict(torch.load(os.path.join(root_dir, "resnet50_epoch_9.pth")))
     model.eval()
 
     transform = transforms.Compose([
