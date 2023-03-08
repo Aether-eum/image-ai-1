@@ -96,60 +96,99 @@ def main():
 
     model_yolol =  YOLO("runs/classify/yolov8l_v8_50e/weights/best.pt")  # load a custom model
 
-    path = os.path.join(root_dir, "images", "642.png")
-    img = Image.open(path)
-    # convert to numpy array
-    img = np.array(img)
-    if img.shape[2] == 4:
-        img = img[:, :, :3]
-    if len(img.shape) == 2:
-        img = skimage.color.gray2rgb(img)
+    # read from the csv file and save the image file name and label value in a dictionary
+    with open('imagetest.csv', newline='') as f:
+        reader = csv.reader(f)
+        test_list = list(reader)
 
-    # transform the image
-    img_50 = transform_model_r50(img)
-    img_101 = transform_r101(img)
-    # img_eb7 = transform_eb7(img)
+    # create a csv file to save the results, overwrite if the file already exists
+    with open('results.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Image", "Label", "Resnet50", "ConfidenceResnet50",
+                         "Resnet101", "ConfidenceResnet101", "YOLOv8N", "ConfidenceYOLOv8N",
+                         "YOLOv8M", "ConfidenceYOLOv8M", "YOLOv8L", "ConfidenceYOLOv8L"])
 
-    # add batch dimension
-    img_50 = img_50.unsqueeze(0)
-    img_101 = img_101.unsqueeze(0)
-    # img_eb7 = img_eb7.unsqueeze(0)
+    # iterate through the test_list
+    for i in range(len(test_list)):
+        # get the image file name
+        img_file = test_list[i][0]
+        # get the expected label value converted to int
+        label_value = int(test_list[i][1])
+        path = os.path.join(root_dir, "images", img_file)
+        img = Image.open(path)
+        # convert to numpy array
+        img = np.array(img)
+        if img.shape[2] == 4:
+            img = img[:, :, :3]
+        if len(img.shape) == 2:
+            img = skimage.color.gray2rgb(img)
 
-    # pass the image through the models
-    output_50 = model_r50(img_50)
-    output_101 = model_r101(img_101)
-    # output_eb7 = model_eb7(img_eb7)
+        # transform the image
+        img_50 = transform_model_r50(img)
+        img_101 = transform_r101(img)
+        # img_eb7 = transform_eb7(img)
 
-    # get the predicted class
-    _, pred_50 = torch.max(output_50, 1)
-    _, pred_101 = torch.max(output_101, 1)
-    # _, pred_eb7 = torch.max(output_eb7, 1)
+        # add batch dimension
+        img_50 = img_50.unsqueeze(0)
+        img_101 = img_101.unsqueeze(0)
+        # img_eb7 = img_eb7.unsqueeze(0)
 
-    # # get the predicted class
-    pred_yolon = model_yolon(path)
-    # print(pred_yolon)
-    # _, pred_yolon = torch.max(pred_yolon., 1)
-    # print(pred_yolon)
-    pred_yolom = model_yolom(path)
-    pred_yolol = model_yolol(path)
+        # pass the image through the models
+        output_50 = model_r50(img_50)
+        output_101 = model_r101(img_101)
+        # output_eb7 = model_eb7(img_eb7)
 
-    # # get the predicted class
-    # _, pred_yolon = torch.max(pred_yolon, 1)
-    # _, pred_yolom = torch.max(pred_yolom, 1)
-    # _, pred_yolol = torch.max(pred_yolol, 1)
-    #
-    # # get the predicted class
-    # pred_yolon = pred_yolon.item()
-    # pred_yolom = pred_yolom.item()
-    # pred_yolol = pred_yolol.item()
+        # get the predicted class
+        confidence_50, pred_50 = torch.max(output_50, 1)
+        confidence_50 = torch.exp(confidence_50)
 
-    # print all
-    print("Resnet50: ", pred_50.item())
-    print("Resnet101: ", pred_101.item())
-    # print("Efficientnetb7: ", pred_eb7.item())
-    # print("YOLOn: ", pred_yolon)
-    # print("YOLOm: ", pred_yolom)
-    # print("YOLOl: ", pred_yolol)
+        confidence_101, pred_101 = torch.max(output_101, 1)
+        confidence_101 = torch.exp(confidence_101)
+        # _, pred_eb7 = torch.max(output_eb7, 1)
+
+        # # get the predicted class
+        pred_yolon = model_yolon(path)
+        pred_yolom = model_yolom(path)
+        pred_yolol = model_yolol(path)
+
+        pred_yolon_arr = pred_yolon[0].probs.cpu().numpy()
+        yolon_confidence = np.max(pred_yolon_arr)
+        yolon_class = np.where(pred_yolon_arr == yolon_confidence)[0][0] + 1
+
+        pred_yolom_arr = pred_yolom[0].probs.cpu().numpy()
+        yolom_confidence = np.max(pred_yolom_arr)
+        yolom_class = np.where(pred_yolom_arr == yolom_confidence)[0][0] + 1
+
+        pred_yolol_arr = pred_yolol[0].probs.cpu().numpy()
+        yolol_confidence = np.max(pred_yolol_arr)
+        yolol_class = np.where(pred_yolol_arr == yolol_confidence)[0][0] + 1
+
+        # print all
+        print("Resnet50: ", pred_50.item(), confidence_50.item())
+        print("Resnet101: ", pred_101.item(), confidence_101.item())
+        # # print("Efficientnetb7: ", pred_eb7.item())
+        print("YOLOn: ", yolon_class, yolon_confidence)
+        print("YOLOm: ", yolom_class, yolom_confidence)
+        print("YOLOl: ", yolol_class, yolol_confidence)
+
+        # write to the csv file
+        with open('results.csv', 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([img_file, label_value, pred_50.item(), confidence_50.item(), pred_101.item(), confidence_101.item(),
+                             yolon_class, yolon_confidence,yolom_class, yolom_confidence,yolol_class, yolol_confidence])
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
