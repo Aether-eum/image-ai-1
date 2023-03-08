@@ -1,7 +1,7 @@
 task: classify
 mode: train
 model: yolov8n-cls.pt
-data: imagenet100
+data: /home/aether/pycharm/ai1/dataset
 epochs: 10
 patience: 50
 batch: 4
@@ -92,4 +92,4 @@ copy_paste: 0.0
 cfg: null
 v5loader: false
 tracker: botsort.yaml
-save_dir: runs/classify/yolov8n_v8_10e3
+save_dir: runs/classify/yolov8n_v8_10e
