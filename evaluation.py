@@ -1,5 +1,7 @@
 
 import os
+import time
+
 from PIL import Image
 from ultralytics import YOLO
 
@@ -108,6 +110,35 @@ def main():
                          "Resnet101", "ConfidenceResnet101", "YOLOv8N", "ConfidenceYOLOv8N",
                          "YOLOv8M", "ConfidenceYOLOv8M", "YOLOv8L", "ConfidenceYOLOv8L"])
 
+    accuracy_50 = 0
+    accuracy_101 = 0
+    accuracy_eb7 = 0
+    accuracy_yolon = 0
+    accuracy_yolom = 0
+    accuracy_yolol = 0
+
+    inference_time_50 = 0
+    inference_time_101 = 0
+    inference_time_eb7 = 0
+    inference_time_yolon = 0
+    inference_time_yolom = 0
+    inference_time_yolol = 0
+
+    mae_50 = 0
+    mae_101 = 0
+    mae_eb7 = 0
+    mae_yolon = 0
+    mae_yolom = 0
+    mae_yolol = 0
+
+    prep_time_50 = 0
+    prep_time_101 = 0
+    prep_time_eb7 = 0
+    prep_time_yolon = 0
+    prep_time_yolom = 0
+    prep_time_yolol = 0
+
+
     # iterate through the test_list
     for i in range(len(test_list)):
         # get the image file name
@@ -124,8 +155,13 @@ def main():
             img = skimage.color.gray2rgb(img)
 
         # transform the image
+        start_time = time.time()
         img_50 = transform_model_r50(img)
+        prep_time_50 += time.time() - start_time
+        start_time = time.time()
         img_101 = transform_r101(img)
+        prep_time_101 += time.time() - start_time
+
         # img_eb7 = transform_eb7(img)
 
         # add batch dimension
@@ -134,8 +170,13 @@ def main():
         # img_eb7 = img_eb7.unsqueeze(0)
 
         # pass the image through the models
+        # measure the inference time
+        start_time = time.time()
         output_50 = model_r50(img_50)
+        inference_time_50 += time.time() - start_time
+        start_time = time.time()
         output_101 = model_r101(img_101)
+        inference_time_101 += time.time() - start_time
         # output_eb7 = model_eb7(img_eb7)
 
         # get the predicted class
@@ -146,10 +187,17 @@ def main():
         confidence_101 = torch.exp(confidence_101)
         # _, pred_eb7 = torch.max(output_eb7, 1)
 
-        # # get the predicted class
+        # get the predicted class
         pred_yolon = model_yolon(path)
+        inference_time_yolon += pred_yolon[0].speed['inference']
+        prep_time_yolon += pred_yolon[0].speed['preprocess']
+
         pred_yolom = model_yolom(path)
+        inference_time_yolom += pred_yolom[0].speed['inference']
+        prep_time_yolom += pred_yolom[0].speed['preprocess']
         pred_yolol = model_yolol(path)
+        inference_time_yolol += pred_yolol[0].speed['inference']
+        prep_time_yolol += pred_yolol[0].speed['preprocess']
 
         pred_yolon_arr = pred_yolon[0].probs.cpu().numpy()
         yolon_confidence = np.max(pred_yolon_arr)
@@ -171,11 +219,89 @@ def main():
         print("YOLOm: ", yolom_class, yolom_confidence)
         print("YOLOl: ", yolol_class, yolol_confidence)
 
+        # calculate the accuracy
+        if pred_50.item() == label_value:
+            accuracy_50 += 1
+        if pred_101.item() == label_value:
+            accuracy_101 += 1
+        if yolon_class == label_value:
+            accuracy_yolon += 1
+        if yolom_class == label_value:
+            accuracy_yolom += 1
+        if yolol_class == label_value:
+            accuracy_yolol += 1
+
+        # calculate absolute difference
+        mae_50 += abs(pred_50.item() - label_value)
+        mae_101 += abs(pred_101.item() - label_value)
+        mae_yolon += abs(yolon_class - label_value)
+        mae_yolom += abs(yolom_class - label_value)
+        mae_yolol += abs(yolol_class - label_value)
+
         # write to the csv file
         with open('results.csv', 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([img_file, label_value, pred_50.item(), confidence_50.item(), pred_101.item(), confidence_101.item(),
                              yolon_class, yolon_confidence,yolom_class, yolom_confidence,yolol_class, yolol_confidence])
+
+
+    # calculate the accuracy
+    accuracy_50 = accuracy_50 / len(test_list)
+    accuracy_101 = accuracy_101 / len(test_list)
+    accuracy_yolon = accuracy_yolon / len(test_list)
+    accuracy_yolom = accuracy_yolom / len(test_list)
+    accuracy_yolol = accuracy_yolol / len(test_list)
+
+    # calculate the inference time
+    inference_time_50 = inference_time_50 / len(test_list)
+    inference_time_101 = inference_time_101 / len(test_list)
+    inference_time_yolon = inference_time_yolon / len(test_list)
+    inference_time_yolom = inference_time_yolom / len(test_list)
+    inference_time_yolol = inference_time_yolol / len(test_list)
+
+    # calculate the prep time
+    prep_time_yolon = prep_time_yolon / len(test_list)
+    prep_time_yolom = prep_time_yolom / len(test_list)
+    prep_time_yolol = prep_time_yolol / len(test_list)
+    prep_time_50 = prep_time_50 / len(test_list)
+    prep_time_101 = prep_time_101 / len(test_list)
+
+    # convert to seconds
+    inference_time_yolon = inference_time_yolon / 1000
+    inference_time_yolom = inference_time_yolom / 1000
+    inference_time_yolol = inference_time_yolol / 1000
+    prep_time_yolon = prep_time_yolon / 1000
+    prep_time_yolom = prep_time_yolom / 1000
+    prep_time_yolol = prep_time_yolol / 1000
+
+
+    # calculate the mean absolute error
+    mae_50 = mae_50 / len(test_list)
+    mae_101 = mae_101 / len(test_list)
+    mae_yolon = mae_yolon / len(test_list)
+    mae_yolom = mae_yolom / len(test_list)
+    mae_yolol = mae_yolol / len(test_list)
+
+    # write accuracy to the csv file
+    with open('results.csv', 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Accuracy", "-", accuracy_50, "-", accuracy_101,"-", accuracy_yolon,"-", accuracy_yolom,"-", accuracy_yolol,"-",])
+
+    # write prep time to the csv file
+    with open('results.csv', 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Prep Time", "-", prep_time_50, "-", prep_time_101,"-", prep_time_yolon,"-", prep_time_yolom,"-", prep_time_yolol,"-",])
+
+    # write inference time to the csv file
+    with open('results.csv', 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Inference Time", "-", inference_time_50, "-", inference_time_101,"-", inference_time_yolon,"-", inference_time_yolom,"-", inference_time_yolol,"-",])
+
+
+    # write mean absolute error to the csv file
+    with open('results.csv', 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Mean Absolute Error", "-", mae_50, "-", mae_101,"-", mae_yolon,"-", mae_yolom,"-", mae_yolol,"-",])
 
 
 
