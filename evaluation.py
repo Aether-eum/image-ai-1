@@ -77,20 +77,6 @@ def main():
             std=[0.229, 0.224, 0.225]  # [7]
         )])
 
-    model_eb7 = torchvision.models.efficientnet_b7(pretrained=True)
-    model_eb7.fc = nn.Sequential(nn.Linear(2048, 512),
-                                  nn.ReLU(),
-                                  nn.Dropout(0.2),
-                                  nn.Linear(512, 10),
-                                  nn.LogSoftmax(dim=1))
-    model_eb7.load_state_dict(torch.load(os.path.join(root_dir, "efficientnetb7_epoch_9.pth")))
-    model_eb7.eval()
-
-    transform_eb7 = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize(896),
-        transforms.ToTensor(),
-    ])
 
     model_yolon =  YOLO("runs/classify/yolov8n_v8_10e/weights/best.pt")  # load a custom model
 
@@ -112,28 +98,24 @@ def main():
 
     accuracy_50 = 0
     accuracy_101 = 0
-    accuracy_eb7 = 0
     accuracy_yolon = 0
     accuracy_yolom = 0
     accuracy_yolol = 0
 
     inference_time_50 = 0
     inference_time_101 = 0
-    inference_time_eb7 = 0
     inference_time_yolon = 0
     inference_time_yolom = 0
     inference_time_yolol = 0
 
     mae_50 = 0
     mae_101 = 0
-    mae_eb7 = 0
     mae_yolon = 0
     mae_yolom = 0
     mae_yolol = 0
 
     prep_time_50 = 0
     prep_time_101 = 0
-    prep_time_eb7 = 0
     prep_time_yolon = 0
     prep_time_yolom = 0
     prep_time_yolol = 0
@@ -162,12 +144,10 @@ def main():
         img_101 = transform_r101(img)
         prep_time_101 += time.time() - start_time
 
-        # img_eb7 = transform_eb7(img)
 
         # add batch dimension
         img_50 = img_50.unsqueeze(0)
         img_101 = img_101.unsqueeze(0)
-        # img_eb7 = img_eb7.unsqueeze(0)
 
         # pass the image through the models
         # measure the inference time
@@ -177,7 +157,6 @@ def main():
         start_time = time.time()
         output_101 = model_r101(img_101)
         inference_time_101 += time.time() - start_time
-        # output_eb7 = model_eb7(img_eb7)
 
         # get the predicted class
         confidence_50, pred_50 = torch.max(output_50, 1)
@@ -185,7 +164,6 @@ def main():
 
         confidence_101, pred_101 = torch.max(output_101, 1)
         confidence_101 = torch.exp(confidence_101)
-        # _, pred_eb7 = torch.max(output_eb7, 1)
 
         # get the predicted class
         pred_yolon = model_yolon(path)
@@ -214,7 +192,6 @@ def main():
         # print all
         print("Resnet50: ", pred_50.item(), confidence_50.item())
         print("Resnet101: ", pred_101.item(), confidence_101.item())
-        # # print("Efficientnetb7: ", pred_eb7.item())
         print("YOLOn: ", yolon_class, yolon_confidence)
         print("YOLOm: ", yolom_class, yolom_confidence)
         print("YOLOl: ", yolol_class, yolol_confidence)
